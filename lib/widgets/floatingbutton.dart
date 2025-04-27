@@ -1,3 +1,4 @@
+import 'package:aiassistant1/screens/task_creation_screen.dart';
 import 'package:flutter/material.dart';
 
 class MyFloatingButton extends StatelessWidget {
@@ -7,13 +8,16 @@ class MyFloatingButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton(
       onPressed: () {
-        print('Customized FAB pressed!');
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => CreateTaskScreen()),
+        );
       },
-      child: Icon(Icons.mic, color: Colors.white),
+      child: const Icon(Icons.mic, color: Colors.white),
       backgroundColor: Colors.blueAccent,
       elevation: 6.0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-      tooltip: 'Open Camera',
+      tooltip: 'Add Task', // Updated tooltip
     );
   }
 }

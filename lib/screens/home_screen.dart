@@ -1,9 +1,13 @@
+import 'package:aiassistant1/models/task.dart';
 import 'package:aiassistant1/widgets/floatingbutton.dart';
 import 'package:aiassistant1/widgets/mycalender.dart';
 import 'package:aiassistant1/widgets/taskview.dart';
 import 'package:flutter/material.dart';
 import 'package:aiassistant1/widgets/bottombar.dart';
 import 'package:aiassistant1/widgets/drawer.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,22 +18,69 @@ class HomeScreen extends StatefulWidget {
 
 class _HomePageState extends State<HomeScreen> {
   int _selectedIndex = 0;
-
-  final List<String> _items = List.generate(20, (index) => "Item ${index + 1}");
-
-  late List<Widget> _pages; // Use late!
+  late List<Widget> _pages;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
     super.initState();
-
     _pages = [
-      MyTaskListView(items: _items), // Now _items is ready
+      _buildTaskStream(), // Replaced with Firestore stream
       const CalendarPage(),
       const Center(child: Text('Mood Page')),
       const Center(child: Text('Reminders Page')),
       const Center(child: Text('Summaries Page')),
     ];
+  }
+
+  Widget _buildTaskStream() {
+    return StreamBuilder<QuerySnapshot>(
+      stream:
+          _firestore
+              .collection('tasks')
+              .orderBy('due_date') // Optional: Sort by due date
+              .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text('No tasks found'));
+        }
+
+        return MyTaskListView(
+          tasks:
+              snapshot.data!.docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                return Task(
+                  id: doc.id,
+                  title: data['task'] ?? 'No Title',
+                  dueDate: _parseDate(data['due_date']),
+                  category: data['category'] ?? 'other',
+                  isCompleted: data['isCompleted'] ?? false,
+                );
+              }).toList(),
+        );
+      },
+    );
+  }
+
+  DateTime _parseDate(dynamic date) {
+    if (date is Timestamp) return date.toDate();
+    if (date is String) {
+      try {
+        return DateFormat('dd-MM-yyyy').parse(date);
+      } catch (e) {
+        return DateTime.now().add(const Duration(days: 1));
+      }
+    }
+    return DateTime.now().add(const Duration(days: 1));
   }
 
   void _onItemTapped(int index) {
